@@ -1,7 +1,7 @@
 import sys
 sys.dont_write_bytecode = True  #Prevent Python from generating.pyc bytecode files.
 
-import argparse
+import argparse #Used to parse command-line arguments.
 from neuralnet import PixelRL_model 
 from State import State
 import torch
@@ -14,7 +14,7 @@ torch.manual_seed(1)
 # =====================================================================================
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--scale",     type=int, default=2,  help='-')
+parser.add_argument("--scale",     type=int, default=4,  help='-')
 parser.add_argument("--ckpt-path", type=str, default="", help='-')
 FLAG, unparsed = parser.parse_known_args()
 
@@ -31,15 +31,16 @@ MODEL_PATH = FLAG.ckpt_path
 if (MODEL_PATH == "") or (MODEL_PATH == "default"):
     MODEL_PATH = f"checkpoint/x{SCALE}/PixelRL_SR-x{SCALE}.pt"
 
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-N_ACTIONS = 7
-GAMMA = 0.95
-T_MAX = 5
-SIGMA = 0.3 if SCALE == 2 else 0.2
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' #Use GPU (if available) or CPU
+N_ACTIONS = 7 #number of actions for the model
+GAMMA = 0.95 #Discount factor, which is used to calculate the reward.
+T_MAX = 5 #Maximum number of time steps.
+SIGMA = 0.3 if SCALE == 2 else 0.2 
+#The standard deviation used for the Gaussian blur, set according to the magnification scale factor.
 
-LS_HR_PATHS = sorted_list(f"dataset/test/x{SCALE}/labels")
-LS_LR_PATHS = sorted_list(f"dataset/test/x{SCALE}/data")
-
+LS_HR_PATHS = sorted_list(f"dataset/test/myx{SCALE}/labels")
+LS_LR_PATHS = sorted_list(f"dataset/test/myx{SCALE}/data")
+#to get the file path for high - and low-resolution images
 
 # =====================================================================================
 # Test each image
