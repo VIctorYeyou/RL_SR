@@ -1,5 +1,5 @@
 import sys
-sys.dont_write_bytecode = True
+sys.dont_write_bytecode = True  #Prevent Python from generating.pyc bytecode files.
 
 import argparse
 from neuralnet import PixelRL_model 
