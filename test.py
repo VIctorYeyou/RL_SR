@@ -47,39 +47,43 @@ LS_LR_PATHS = sorted_list(f"dataset/test/myx{SCALE}/data")
 # =====================================================================================
 
 def main():
-    CURRENT_STATE = State(SCALE, DEVICE)
+    CURRENT_STATE = State(SCALE, DEVICE) #Initialize the state object.
 
-    MODEL = PixelRL_model(N_ACTIONS).to(DEVICE)
+    MODEL = PixelRL_model(N_ACTIONS).to(DEVICE) #Initialize and load the model.
     if exists(MODEL_PATH):
         MODEL.load_state_dict(torch.load(MODEL_PATH, torch.device(DEVICE)))
-    MODEL.eval()
-
+        #Load the model weights.
+    MODEL.eval() #Set the model to evaluation mode.
+    #Test each image
     reward_array = []
     metric_array = []
+    #The reward and PSNR values are stored separately.
     for i in range(0, len(LS_HR_PATHS)):
+        #The paths of the high-resolution and low-resolution images are obtained separately.
         hr_image_path = LS_HR_PATHS[i]
         lr_image_path = LS_LR_PATHS[i]
         hr = read_image(hr_image_path)
         lr = read_image(lr_image_path)
-        lr = gaussian_blur(lr, sigma=SIGMA)
-        bicubic = upscale(lr, SCALE)
+        lr = gaussian_blur(lr, sigma=SIGMA) #Gaussian blur is applied to the low-resolution image.
+        bicubic = upscale(lr, SCALE) #The low-resolution image is magnified by bicubic interpolation.
 
         bicubic = rgb2ycbcr(bicubic)
         lr = rgb2ycbcr(lr)
-        hr= rgb2ycbcr(hr)
+        hr= rgb2ycbcr(hr) #Convert image color space to YCbCr.
 
 
-        bicubic = norm01(bicubic).unsqueeze(0)
+        bicubic = norm01(bicubic).unsqueeze(0) #Normalize the image and add a dimension.
         lr = norm01(lr).unsqueeze(0)
         hr = norm01(hr).unsqueeze(0)
 
+        #In the case of not computing the gradient
         with torch.no_grad():
-            CURRENT_STATE.reset(lr, bicubic)
+            CURRENT_STATE.reset(lr, bicubic) #Resetting the current state
             sum_reward = 0
             for t in range(0, T_MAX):
-                prev_img = CURRENT_STATE.sr_image.clone()
-                statevar = CURRENT_STATE.tensor.to(DEVICE)
-                actions, _, inner_state = MODEL.choose_best_actions(statevar)
+                prev_img = CURRENT_STATE.sr_image.clone() #Reset the current state to copy the current super-resolution image
+                statevar = CURRENT_STATE.tensor.to(DEVICE) #Transform the current state into a tensor and pass it to the model.
+                actions, _, inner_state = MODEL.choose_best_actions(statevar) #Select the best action and update the state.
 
                 CURRENT_STATE.step(actions, inner_state)
                 # Calculate reward on Y chanel only
@@ -88,7 +92,7 @@ def main():
 
                 sum_reward += torch.mean(reward * 255) * (GAMMA ** t)
 
-            sr = torch.clip(CURRENT_STATE.sr_image, 0.0, 1.0)
+            sr = torch.clip(CURRENT_STATE.sr_image, 0.0, 1.0 #The generated super-resolution image is cropped.
             psnr = PSNR(hr, sr)
             metric_array.append(psnr)
             reward_array.append(sum_reward)
