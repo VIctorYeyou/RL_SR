@@ -108,7 +108,7 @@ def main():
             print(f"Image {i+1}: PSNR: {psnr:.4f}, Reward: {sum_reward:.4f}")
 
             # 保存超分辨率后的图像
-            sr_image = sr.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255
+            sr_image = sr.squeeze(0).permute(2,1,0).cpu().numpy() * 255
             sr_image = sr_image.astype(np.uint8)
             output_path = os.path.join(OUTPUT_DIR, f"super_resolution_image_{i+1}.png")
             plt.imsave(output_path, sr_image)
