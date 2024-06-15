@@ -100,6 +100,12 @@ def main():
                 sum_reward += torch.mean(reward * 255) * (GAMMA ** t)
 
             sr = torch.clip(CURRENT_STATE.sr_image, 0.0, 1.0)  # The generated super-resolution image is cropped.
+            sr_image = torch.clip(CURRENT_STATE.sr_image[0], 0.0, 1.0)
+            sr_image = denorm01(sr_image)
+            sr_image = sr_image.type(torch.uint8)
+            sr_image = ycbcr2rgb(sr_image)
+
+            
             psnr = PSNR(hr, sr)
             metric_array.append(psnr)
             reward_array.append(sum_reward)
@@ -108,8 +114,8 @@ def main():
             print(f"Image {i+1}: PSNR: {psnr:.4f}, Reward: {sum_reward:.4f}")
 
             # 保存超分辨率后的图像
-            sr_image = sr.squeeze(0).permute(1,2,0).cpu().numpy() * 255
-            sr_image = sr_image.astype(np.uint8)
+            #sr_image = sr.squeeze(0).permute(1,2,0).cpu().numpy() * 255
+            #sr_image = sr_image.astype(np.uint8)
     
             output_path = os.path.join(OUTPUT_DIR, f"super_resolution_image_{i+1}.png")
             plt.imsave(output_path, sr_image)
