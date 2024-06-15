@@ -112,7 +112,7 @@ def main():
             sr_image = sr_image.astype(np.uint8)
             
             if sr_image.shape[2] == 3:  # 如果是彩色图像
-                sr_image = sr_image[..., [2, 1, 0]]  # 将 BGR 转换为 RGB
+                sr_image = sr_image[..., [0, 1, 2]]  # 将 BGR 转换为 RGB
     
             output_path = os.path.join(OUTPUT_DIR, f"super_resolution_image_{i+1}.png")
             plt.imsave(output_path, sr_image)
