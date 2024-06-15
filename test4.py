@@ -74,18 +74,14 @@ def main():
         # The paths of the high-resolution and low-resolution images are obtained separately.
         hr_image_path = LS_HR_PATHS[i]
         lr_image_path = LS_LR_PATHS[i]
-        hr = read_image(hr_image_path)
-        lr = read_image(lr_image_path)
+        hr = read_image(hr_image_path, mode='L')  # 读取灰度图像
+        lr = read_image(lr_image_path, mode='L')  # 读取灰度图像
         lr = gaussian_blur(lr, sigma=SIGMA)  # Gaussian blur is applied to the low-resolution image.
         bicubic = upscale(lr, SCALE)  # The low-resolution image is magnified by bicubic interpolation.
 
-        bicubic = rgb2ycbcr(bicubic)
-        lr = rgb2ycbcr(lr)
-        hr = rgb2ycbcr(hr)  # Convert image color space to YCbCr.
-
-        bicubic = norm01(bicubic).unsqueeze(0)  # Normalize the image and add a dimension.
-        lr = norm01(lr).unsqueeze(0)
-        hr = norm01(hr).unsqueeze(0)
+        bicubic = norm01(bicubic).unsqueeze(0).unsqueeze(0)  # Normalize the image and add a dimension.
+        lr = norm01(lr).unsqueeze(0).unsqueeze(0)
+        hr = norm01(hr).unsqueeze(0).unsqueeze(0)
 
         # In the case of not computing the gradient
         with torch.no_grad():
@@ -98,8 +94,8 @@ def main():
 
                 CURRENT_STATE.step(actions, inner_state)
                 # Calculate reward on Y channel only
-                reward = torch.square(hr[:,0:1] - prev_img[:,0:1]) - \
-                         torch.square(hr[:,0:1] - CURRENT_STATE.sr_image[:,0:1])
+                reward = torch.square(hr - prev_img) - \
+                         torch.square(hr - CURRENT_STATE.sr_image)
 
                 sum_reward += torch.mean(reward * 255) * (GAMMA ** t)
 
@@ -112,15 +108,21 @@ def main():
             print(f"Image {i+1}: PSNR: {psnr:.4f}, Reward: {sum_reward:.4f}")
 
             # 保存超分辨率后的图像
-            sr_image = sr.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255
+            sr_image = sr.squeeze(0).squeeze(0).cpu().numpy() * 255
             sr_image = sr_image.astype(np.uint8)
             output_path = os.path.join(OUTPUT_DIR, f"super_resolution_image_{i+1}.png")
-            plt.imsave(output_path, sr_image)
+            plt.imsave(output_path, sr_image, cmap='gray')
             print(f"Saved super-resolution image to {output_path}")
 
     # 输出平均 PSNR 和 reward
     print(f"Average reward: {torch.mean(torch.tensor(reward_array) * 255):.4f}",
           f"- PSNR: {torch.mean(torch.tensor(metric_array)):.4f}")
+
+    # 列出输出目录中的文件
+    files = os.listdir(OUTPUT_DIR)
+    print(f"Files in {OUTPUT_DIR}:")
+    for file in files:
+        print(file)
 
 if __name__ == '__main__':
     main()
