@@ -7,7 +7,7 @@ from State import State
 import torch
 from utils.common import *
 import matplotlib.pyplot as plt  # 用于展示图像
-from IPython.display import display, Image  # 用于在 Colab 中显示图像
+import os  # 用于文件操作
 import numpy as np
 
 torch.manual_seed(1)
@@ -19,6 +19,7 @@ torch.manual_seed(1)
 parser = argparse.ArgumentParser()
 parser.add_argument("--scale",     type=int, default=4,  help='-')
 parser.add_argument("--ckpt-path", type=str, default="", help='-')
+parser.add_argument("--output-dir", type=str, default="output", help='Directory to save output images')
 FLAG, unparsed = parser.parse_known_args()
 
 
@@ -33,6 +34,10 @@ if SCALE not in [2, 3, 4]:
 MODEL_PATH = FLAG.ckpt_path
 if (MODEL_PATH == "") or (MODEL_PATH == "default"):
     MODEL_PATH = f"checkpoint/x{SCALE}/PixelRL_SR-x{SCALE}.pt"
+
+OUTPUT_DIR = FLAG.output_dir
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'  # Use GPU (if available) or CPU
 N_ACTIONS = 7  # number of actions for the model
@@ -102,14 +107,12 @@ def main():
             # 输出每张图片的 PSNR 和 reward
             print(f"Image {i+1}: PSNR: {psnr:.4f}, Reward: {sum_reward:.4f}")
 
-            # 展示超分辨率后的图像
+            # 保存超分辨率后的图像
             sr_image = sr.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255
             sr_image = sr_image.astype(np.uint8)
-            
-            plt.imshow(sr_image)
-            plt.title(f"Super-Resolution Image {i+1}")
-            plt.axis('off')
-            plt.show()
+            output_path = os.path.join(OUTPUT_DIR, f"super_resolution_image_{i+1}.png")
+            plt.imsave(output_path, sr_image)
+            print(f"Saved super-resolution image to {output_path}")
 
     # 输出平均 PSNR 和 reward
     print(f"Average reward: {torch.mean(torch.tensor(reward_array) * 255):.4f}",
