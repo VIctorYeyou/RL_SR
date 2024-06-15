@@ -108,6 +108,7 @@ def main():
             print(f"Image {i+1}: PSNR: {psnr:.4f}, Reward: {sum_reward:.4f}")
 
             # 保存超分辨率后的图像
+            sr = ycbcr2rgb(sr)
             sr_image = sr.squeeze(0).permute(1,2,0).cpu().numpy() * 255
             sr_image = sr_image.astype(np.uint8)
             
