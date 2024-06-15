@@ -9,12 +9,8 @@ from utils.common import *
 import matplotlib.pyplot as plt  # 用于展示图像
 import os  # 用于文件操作
 import numpy as np
-from google.colab import drive
 
 torch.manual_seed(1)
-
-# 挂载 Google Drive
-drive.mount('/content/drive')
 
 # =====================================================================================
 # arguments parser
