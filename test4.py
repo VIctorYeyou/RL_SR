@@ -9,6 +9,8 @@ from utils.common import *
 import matplotlib.pyplot as plt  # 用于展示图像
 import os  # 用于文件操作
 import numpy as np
+from torchvision import io  # 用于图像处理
+from PIL import Image  # 用于图像处理
 
 torch.manual_seed(1)
 
@@ -19,7 +21,7 @@ torch.manual_seed(1)
 parser = argparse.ArgumentParser()
 parser.add_argument("--scale",     type=int, default=4,  help='-')
 parser.add_argument("--ckpt-path", type=str, default="", help='-')
-parser.add_argument("--output-dir", type=str, default="/content/drive/MyDrive/super_resolution_output", help='Directory to save output images')
+parser.add_argument("--output-dir", type=str, default="./super_resolution_output", help='Directory to save output images')
 FLAG, unparsed = parser.parse_known_args()
 
 
@@ -54,6 +56,10 @@ LS_LR_PATHS = sorted_list(f"dataset/test/myx{SCALE}/data")
 # Test each image
 # =====================================================================================
 
+def read_image(filepath):
+    image = io.read_image(filepath, io.ImageReadMode.RGB)
+    return image
+
 def main():
     CURRENT_STATE = State(SCALE, DEVICE)  # Initialize the state object.
 
@@ -70,14 +76,25 @@ def main():
         # The paths of the high-resolution and low-resolution images are obtained separately.
         hr_image_path = LS_HR_PATHS[i]
         lr_image_path = LS_LR_PATHS[i]
-        hr = read_image(hr_image_path, mode='L')  # 读取灰度图像
-        lr = read_image(lr_image_path, mode='L')  # 读取灰度图像
+        hr = read_image(hr_image_path)  # 读取 RGB 图像
+        lr = read_image(lr_image_path)  # 读取 RGB 图像
+
+        # 如果图像是灰度图像，转换为 RGB
+        if hr.shape[0] == 1:
+            hr = hr.repeat(3, 1, 1)
+        if lr.shape[0] == 1:
+            lr = lr.repeat(3, 1, 1)
+
         lr = gaussian_blur(lr, sigma=SIGMA)  # Gaussian blur is applied to the low-resolution image.
         bicubic = upscale(lr, SCALE)  # The low-resolution image is magnified by bicubic interpolation.
 
-        bicubic = norm01(bicubic).unsqueeze(0).unsqueeze(0)  # Normalize the image and add a dimension.
-        lr = norm01(lr).unsqueeze(0).unsqueeze(0)
-        hr = norm01(hr).unsqueeze(0).unsqueeze(0)
+        bicubic = rgb2ycbcr(bicubic)
+        lr = rgb2ycbcr(lr)
+        hr = rgb2ycbcr(hr)  # Convert image color space to YCbCr.
+
+        bicubic = norm01(bicubic).unsqueeze(0)  # Normalize the image and add a dimension.
+        lr = norm01(lr).unsqueeze(0)
+        hr = norm01(hr).unsqueeze(0)
 
         # In the case of not computing the gradient
         with torch.no_grad():
@@ -90,8 +107,8 @@ def main():
 
                 CURRENT_STATE.step(actions, inner_state)
                 # Calculate reward on Y channel only
-                reward = torch.square(hr - prev_img) - \
-                         torch.square(hr - CURRENT_STATE.sr_image)
+                reward = torch.square(hr[:,0:1] - prev_img[:,0:1]) - \
+                         torch.square(hr[:,0:1] - CURRENT_STATE.sr_image[:,0:1])
 
                 sum_reward += torch.mean(reward * 255) * (GAMMA ** t)
 
@@ -104,10 +121,11 @@ def main():
             print(f"Image {i+1}: PSNR: {psnr:.4f}, Reward: {sum_reward:.4f}")
 
             # 保存超分辨率后的图像
-            sr_image = sr.squeeze(0).squeeze(0).cpu().numpy() * 255
+            sr_image = sr.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255
             sr_image = sr_image.astype(np.uint8)
+            sr_image_pil = Image.fromarray(sr_image).convert('L')  # 转换为灰度图像
             output_path = os.path.join(OUTPUT_DIR, f"super_resolution_image_{i+1}.png")
-            plt.imsave(output_path, sr_image, cmap='gray')
+            sr_image_pil.save(output_path)
             print(f"Saved super-resolution image to {output_path}")
 
     # 输出平均 PSNR 和 reward
